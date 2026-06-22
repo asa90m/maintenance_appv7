@@ -164,6 +164,27 @@
         .data-table th, .data-table td { border: 1px solid var(--border-color); padding: 10px; text-align: right; font-size: 0.85rem; }
         .data-table th { background: var(--bg-sidebar); }
 
+        #print-designer-visual {
+            border: 2px dashed var(--brand-color);
+            width: 100%;
+            max-width: 210mm;
+            height: 65mm;
+            position: relative;
+            background: white;
+            color: black;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+        .draggable-element {
+            position: absolute;
+            padding: 1px 4px;
+            border: 1px dotted #999;
+            cursor: move;
+            font-size: 11px;
+            white-space: nowrap;
+            touch-action: none;
+        }
+
         .footer-credits {
             text-align: center;
             padding: 8px;
@@ -187,11 +208,16 @@
             overflow-y: auto;
         }
         .noti-item { padding: 10px; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; }
+
+        @media print {
+            body * { display: none !important; }
+            #print-area-target, #print-area-target * { display: block !important; }
+            #print-area-target { position: absolute; left: 0; top: 0; width: 210mm; height: 65mm; background: white !important; color: black !important; }
+        }
     </style>
 </head>
 <body data-theme="light">
 
-    <!-- شاشة تسجيل الدخول admin/admin -->
     <div id="login-screen">
         <div class="login-card">
             <h2>الوحده للبرمجيات</h2>
@@ -199,14 +225,14 @@
             <input type="text" id="login-user" placeholder="اسم المستخدم" value="admin">
             <input type="password" id="login-pass" placeholder="كلمة المرور" value="admin">
             <button onclick="handleLogin()">تسجيل الدخول</button>
+            <div style="margin-top: 15px; font-size: 0.8rem; color: var(--gray-muted);">تصميم المهندس عبدالرحمن الاحمر 772364042</div>
         </div>
     </div>
 
-    <!-- شاشة تحديث كلمة السر الإجبارية للمدير قبل فتح النظام -->
     <div id="password-reset-screen" style="display: none;">
         <div class="login-card">
-            <h3 style="color: var(--danger-color); margin-bottom: 10px;">🛡️ تعيين كلمة مرور المدير العام</h3>
-            <p style="color: var(--text-main); font-size: 0.9rem; margin-bottom: 15px;">النظام جديد وصافٍ. يرجى إدخال كلمة مرور جديدة قوية لحساب المدير العام لتأمين النظام والبدء في العمل.</p>
+            <h3 style="color: var(--danger-color); margin-bottom: 10px;">🛡️ إجراء أمان مطلوب</h3>
+            <p style="color: var(--text-main); font-size: 0.9rem; margin-bottom: 15px;">أنت تسجل الدخول بالحساب الافتراضي للمدير العام. يرجى تعيين كلمة مرور جديدة قوية الآن لتأمين النظام.</p>
             <input type="password" id="new-secure-pass" placeholder="كلمة المرور الجديدة">
             <input type="password" id="confirm-secure-pass" placeholder="تأكيد كلمة المرور الجديدة">
             <button onclick="forcePasswordChange()" style="background: var(--success-color);">حفظ وتأمين الحساب 🔒</button>
@@ -241,12 +267,12 @@
             <div class="sidebar-section">
                 <div class="section-title">الإعدادات</div>
                 <div class="menu-item" id="menu-maintenance" onclick="switchView('sys-maintenance-view', this)">💾 <span class="menu-text">صيانة النظام</span></div>
+                <div class="menu-item" id="menu-printing" onclick="switchView('print-settings-view', this)">🖨️ <span class="menu-text">إعدادات الطباعة</span></div>
             </div>
         </aside>
 
         <main id="content-area">
 
-            <!-- واجهة إيصال جديد -->
             <section id="new-receipt-view" class="view-panel active">
                 <h3 style="margin-bottom: 15px; color: var(--brand-color);">إيصال استلام جديد</h3>
                 <form id="receipt-form" onsubmit="saveNewReceipt(event)">
@@ -283,7 +309,8 @@
                         <div class="col autocomplete-wrapper">
                             <div class="form-group">
                                 <label>الموديل المرتبط</label>
-                                <input type="text" id="rec-model" class="form-control" required>
+                                <input type="text" id="rec-model" class="form-control" required oninput="suggestModels(this.value)">
+                                <div class="suggestions-box" id="model-suggestions"></div>
                             </div>
                         </div>
                         <div class="col">
@@ -316,8 +343,9 @@
                         </div>
                         <div class="col autocomplete-wrapper">
                             <div class="form-group">
-                                <label>العطل</label>
-                                <input type="text" id="rec-fault-desc" class="form-control" required>
+                                <label>العطل (تنبؤ ذكي)</label>
+                                <input type="text" id="rec-fault-desc" class="form-control" required oninput="suggestFaults(this.value)">
+                                <div class="suggestions-box" id="fault-suggestions"></div>
                             </div>
                         </div>
                     </div>
@@ -364,13 +392,13 @@
                         </div>
                     </div>
 
-                    <div style="margin-top: 15px;">
+                    <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                         <button type="submit" class="btn btn-success">💾 حفظ السند</button>
+                        <button type="button" class="btn btn-primary" onclick="triggerDirectPrint()">🖨️ طباعة السند</button>
                     </div>
                 </form>
             </section>
 
-            <!-- واجهة البحث عن الأجهزة -->
             <section id="search-devices-view" class="view-panel">
                 <h3 style="margin-bottom: 15px; color: var(--brand-color);">البحث والتقارير الفورية</h3>
                 <div class="row" style="margin-bottom: 15px;">
@@ -398,7 +426,6 @@
                 </div>
             </section>
 
-            <!-- واجهة تقارير المهندسين والترحيل -->
             <section id="eng-reports-view" class="view-panel">
                 <h3 style="margin-bottom: 15px; color: var(--brand-color);">ترحيل تقارير المهندسين</h3>
                 <div class="row" style="margin-bottom: 15px;">
@@ -419,11 +446,21 @@
                                 <option value="قيد العمل">قيد العمل 🔧</option>
                                 <option value="تم التصليح">تم التصليح ✅</option>
                                 <option value="لا يمكن إصلاحه">لا يمكن إصلاحه ❌</option>
+                                <option value="لا يتوفر له قطع غيار حالياً">لا يتوفر له قطع غيار حالياً ⏳</option>
+                                <option value="تم الرفض من الزبون">تم الرفض من الزبون 🚫</option>
                             </select>
                         </div>
                         <div class="col">
                             <label><b>المهندس الفني:</b></label>
                             <select id="rep-engineer" class="form-control"></select>
+                        </div>
+                    </div>
+                    <div class="row" style="margin-top: 12px;">
+                        <div class="col">
+                            <label><input type="checkbox" id="rep-delivered"> تم تسليم الجهاز نهائياً للعميل</label>
+                        </div>
+                        <div class="col">
+                            <label><input type="checkbox" id="rep-paid"> تم الدفع وبراءة الذمة المالية</label>
                         </div>
                     </div>
                     <div style="margin-top: 15px;">
@@ -432,7 +469,6 @@
                 </div>
             </section>
 
-            <!-- واجهة الموظفين -->
             <section id="employees-view" class="view-panel">
                 <h3 style="margin-bottom: 15px; color: var(--brand-color);">إدارة الموظفين والصلاحيات</h3>
                 <form id="employee-form" onsubmit="addNewEmployee(event)">
@@ -445,6 +481,7 @@
                         <p style="font-weight: bold; margin-bottom: 5px;">الصلاحيات الممنوحة:</p>
                         <label style="margin-left: 10px;"><input type="checkbox" id="perm-new-receipt" checked> إيصال جديد</label>
                         <label style="margin-left: 10px;"><input type="checkbox" id="perm-edit" checked> ترحيل وتعديل</label>
+                        <label style="margin-left: 10px;"><input type="checkbox" id="perm-delete"> صلاحية الحذف</label>
                         <label style="margin-left: 10px;"><input type="checkbox" id="perm-admin"> مسؤول كامل</label>
                     </div>
                     <button type="submit" class="btn btn-primary">➕ إضافة موظف جديد</button>
@@ -457,7 +494,6 @@
                 </div>
             </section>
 
-            <!-- واجهة المهندسين -->
             <section id="engineers-view" class="view-panel">
                 <h3 style="margin-bottom: 15px; color: var(--brand-color);">إضافة وتحديث كادر المهندسين</h3>
                 <form id="engineer-form" onsubmit="addNewEngineer(event)">
@@ -476,10 +512,10 @@
                 </div>
             </section>
 
-            <!-- صيانة النظام -->
             <section id="sys-maintenance-view" class="view-panel">
-                <h3 style="margin-bottom: 15px; color: var(--brand-color);">النسخ الاحتياطي والصيانة</h3>
+                <h3 style="margin-bottom: 15px; color: var(--brand-color);">النسخ الاحتياطي والمزامنة السحابية</h3>
                 <div style="background: var(--bg-sidebar); padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                    <p style="font-size: 0.85rem; color: var(--gray-muted); margin-bottom: 12px;">إدارة وحفظ قاعدة بيانات المحل بصيغة JSON مرنة.</p>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button class="btn btn-success" onclick="exportSystemData()">📥 تحميل النسخة الاحتياطية (JSON)</button>
                         <button class="btn btn-primary" onclick="document.getElementById('import-file-input').click()">📤 استرجاع وتحديث البيانات</button>
@@ -488,37 +524,83 @@
                 </div>
             </section>
 
+            <section id="print-settings-view" class="view-panel">
+                <h3 style="margin-bottom: 15px; color: var(--brand-color);">لوحة التحكم في إحداثيات ومقاس السند المطبوع مسبقاً</h3>
+                <p style="font-size: 0.85rem; color: var(--gray-muted);">أبعاد السند: 6.5 سم طول × 21 سم عرض.</p>
+                
+                <div class="row" style="margin-top: 10px;">
+                    <div class="col">
+                        <label>حجم الخط (بكسل)</label>
+                        <input type="number" id="print-font-size" class="form-control" value="13" oninput="updateDesignerStyles()">
+                    </div>
+                    <div class="col">
+                        <label>لون حقول الطباعة</label>
+                        <input type="color" id="print-font-color" class="form-control" value="#000000" oninput="updateDesignerStyles()">
+                    </div>
+                </div>
+
+                <div id="print-designer-visual">
+                    <div style="position: absolute; top: 0; width: 100%; height: 22mm; background: #e2e8f0; text-align: center; line-height: 22mm; font-size: 11px; color: #718096;">
+                        حيز الشعار المطبوع مسبقاً (2.2 سم)
+                    </div>
+                    <div class="draggable-element" id="drag-p-id" style="top: 25mm; left: 5mm;">رقم السند: #1</div>
+                    <div class="draggable-element" id="drag-p-name" style="top: 25mm; left: 55mm;">العميل: محمد أحمد</div>
+                    <div class="draggable-element" id="drag-p-device" style="top: 33mm; left: 5mm;">الجهاز: طراز الهاتف</div>
+                    <div class="draggable-element" id="drag-p-fault" style="top: 33mm; left: 100mm;">العطل: وصف المشكلة</div>
+                    <div class="draggable-element" id="drag-p-money" style="top: 42mm; left: 5mm;">الإجمالي: 0</div>
+                    <div class="draggable-element" id="drag-p-prepaid" style="top: 42mm; left: 65mm;">المسبق: 0</div>
+                    <div class="draggable-element" id="drag-p-rem" style="top: 42mm; left: 125mm;">المتبقي: 0</div>
+                    <div class="draggable-element" id="drag-p-dates" style="top: 52mm; left: 5mm;">موعد التسليم المتوقع</div>
+                </div>
+                <button class="btn btn-success" style="margin-top: 15px;" onclick="savePrintLayoutCoordinates()">💾 حفظ إحداثيات ومواقع الطباعة</button>
+            </section>
+
         </main>
     </div>
 
     <div id="notification-center">
-        <div style="padding: 10px; font-weight: bold; background: var(--brand-color); color: white; font-size: 0.9rem;">إشعارات النظام</div>
+        <div style="padding: 10px; font-weight: bold; background: var(--brand-color); color: white; font-size: 0.9rem;">إشعارات الأجهزة المتأخرة</div>
         <div id="noti-list-container"></div>
     </div>
 
+    <div id="print-area-target"></div>
+
     <footer class="footer-credits">
-        نظام صيانة الوحده للبرمجيات &copy; 2026
+        نظام صيانة الوحده للبرمجيات | تصميم المهندس عبدالرحمن الاحمر 772364042 &copy; 2026
     </footer>
 
     <script>
-        // إعداد قاعدة بيانات فارغة ونظيفة تماماً
+        // تنظيف قاعدة البيانات من أي أسماء افتراضية مسبقة لتبدأ صفحة بيضاء وجديدة
         let db = {
             receipts: [],
-            engineers: [], // صفر تماماً
+            clients: [],
+            engineers: [], // تم التصفير بالكامل ليتم تعبئتها بواسطة المستخدم
             employees: [
-                { id: 1, name: "المدير العام", user: "admin", pass: "admin", perms: { admin: true } }
+                { id: 1, name: "المدير العام", user: "admin", pass: "admin", perms: { new: true, edit: true, del: true, admin: true } }
             ],
+            printLayout: {
+                fontSize: 13, color: "#000000",
+                positions: {
+                    id: { top: 95, left: 20 }, name: { top: 95, left: 210 },
+                    device: { top: 125, left: 20 }, fault: { top: 125, left: 380 },
+                    money: { top: 160, left: 20 }, prepaid: { top: 160, left: 240 }, remaining: { top: 160, left: 450 },
+                    dates: { top: 200, left: 20 }
+                }
+            },
             suggestionsData: {
-                brands: ["Apple", "Samsung", "Huawei", "Xiaomi", "Infinix"]
+                brands: ["Apple", "Samsung", "Huawei", "Xiaomi", "Infinix", "MikroTik", "ZTE"],
+                models: [],
+                faults: ["تغيير شاشة", "إصلاح فلاشة NAND", "تخطي حساب السوفتوير"]
             }
         };
 
         let currentUser = null;
 
         window.onload = function() {
-            // مسح وتصفير إجباري للمتصفح لتنظيف مخلفات الأنظمة السابقة بالكامل
-            localStorage.setItem("wahda_clean_db", JSON.stringify(db));
+            // تحديث قسري ومسح المخلفات السابقة لضمان عدم ظهور الأسماء القديمة مجدداً
+            localStorage.setItem("wahda_sys_db", JSON.stringify(db));
             initSystemCore();
+            setupDraggableElements();
         };
 
         function initSystemCore() {
@@ -526,6 +608,8 @@
             populateEngineersDropdowns();
             renderEngineersTable();
             renderEmployeesTable();
+            updateDesignerVisualFromDB();
+            calculateSystemNotifications();
         }
 
         function handleLogin() {
@@ -535,7 +619,6 @@
             
             if (matched) {
                 currentUser = matched;
-                // إذا كان المدير يدخل بكلمة السر الافتراضية admin يتم إجباره على التغيير فوراً
                 if (matched.user === "admin" && matched.pass === "admin") {
                     document.getElementById("login-screen").style.display = "none";
                     document.getElementById("password-reset-screen").style.display = "flex";
@@ -553,7 +636,7 @@
             const confirmPass = document.getElementById("confirm-secure-pass").value;
 
             if (!newPass || newPass.trim() === "" || newPass === "admin") {
-                alert("يرجى إدخال كلمة مرور جديدة وقوية ومختلفة عن كلمة admin الحالية!");
+                alert("يرجى إدخال كلمة مرور جديدة وقوية ومختلفة عن كلمة admin!");
                 return;
             }
             if (newPass !== confirmPass) {
@@ -564,8 +647,8 @@
             const adminUser = db.employees.find(e => e.user === "admin");
             if (adminUser) {
                 adminUser.pass = newPass;
-                localStorage.setItem("wahda_clean_db", JSON.stringify(db));
-                alert("🔒 تم تعيين كلمة المرور الجديدة وتأمين حساب المدير بنجاح.");
+                saveToLocalStorage();
+                alert("🔒 تم تحديث كلمة مرور المدير العام وتأمين النظام بنجاح.");
                 document.getElementById("password-reset-screen").style.display = "none";
                 applyUserPermissions(currentUser);
             }
@@ -576,10 +659,12 @@
                 document.getElementById("menu-employees").style.display = "flex";
                 document.getElementById("menu-engineers").style.display = "flex";
                 document.getElementById("menu-maintenance").style.display = "flex";
+                document.getElementById("menu-printing").style.display = "flex";
             } else {
                 document.getElementById("menu-employees").style.display = "none";
                 document.getElementById("menu-engineers").style.display = "none";
                 document.getElementById("menu-maintenance").style.display = "none";
+                document.getElementById("menu-printing").style.display = "none";
             }
         }
 
@@ -617,6 +702,22 @@
             document.getElementById("rec-remaining").value = Math.max(0, total - prepaid);
         }
 
+        function searchClientByPhone(val) {
+            const box = document.getElementById("phone-suggestions");
+            if (!val) { box.style.display = "none"; return; }
+            let matches = db.receipts.filter(r => r.phone.includes(val));
+            if (matches.length > 0) {
+                box.innerHTML = matches.map(m => `<div class="suggestion-item" onclick="selectClientSuggestion('${m.phone}', '${m.clientName}')">${m.phone} (${m.clientName})</div>`).join("");
+                box.style.display = "block";
+            } else { box.style.display = "none"; }
+        }
+
+        function selectClientSuggestion(phone, name) {
+            document.getElementById("rec-phone").value = phone;
+            document.getElementById("rec-client-name").value = name;
+            document.getElementById("phone-suggestions").style.display = "none";
+        }
+
         function suggestBrands(val) {
             const box = document.getElementById("brand-suggestions");
             if (!val) { box.style.display = "none"; return; }
@@ -625,10 +726,26 @@
             box.style.display = "block";
         }
 
+        function suggestModels(val) {
+            const box = document.getElementById("model-suggestions");
+            if (!val) { box.style.display = "none"; return; }
+            let filtered = db.suggestionsData.models.filter(m => m.toLowerCase().includes(val.toLowerCase()));
+            box.innerHTML = filtered.map(f => `<div class="suggestion-item" onclick="document.getElementById('rec-model').value='${f}'; document.getElementById('model-suggestions').style.display='none';">${f}</div>`).join("");
+            box.style.display = "block";
+        }
+
+        function suggestFaults(val) {
+            const box = document.getElementById("fault-suggestions");
+            if (!val) { box.style.display = "none"; return; }
+            let filtered = db.suggestionsData.faults.filter(f => f.toLowerCase().includes(val.toLowerCase()));
+            box.innerHTML = filtered.map(f => `<div class="suggestion-item" onclick="document.getElementById('rec-fault-desc').value='${f}'; document.getElementById('fault-suggestions').style.display='none';">${f}</div>`).join("");
+            box.style.display = "block";
+        }
+
         function saveNewReceipt(e) {
             e.preventDefault();
             const engSelect = document.getElementById("rec-engineer").value;
-            if(!engSelect) { alert("يرجى اختيار المهندس الفني المسؤول أولاً!"); return; }
+            if(!engSelect) { alert("يرجى اختيار المهندس المسؤول أولاً!"); return; }
             
             const newRec = {
                 id: db.receipts.length + 1,
@@ -645,13 +762,88 @@
                 prepaid: document.getElementById("rec-prepaid").value,
                 remaining: document.getElementById("rec-remaining").value,
                 engineerId: engSelect,
-                status: "قيد العمل"
+                status: "قيد العمل",
+                delivered: false,
+                paid: false,
+                createdAt: new Date().getTime(),
+                expectedDelivery: new Date().getTime() + (24 * 60 * 60 * 1000)
             };
             db.receipts.push(newRec);
-            localStorage.setItem("wahda_clean_db", JSON.stringify(db));
+            saveToLocalStorage();
             alert(`تم حفظ السند رقم ${newRec.id} بنجاح.`);
             initSystemCore();
             document.getElementById("receipt-form").reset();
+        }
+
+        function performGlobalSearch() {
+            const val = document.getElementById("search-global-input").value.toLowerCase();
+            const output = document.getElementById("search-results-output");
+            let filtered = db.receipts.filter(r => r.id.toString() === val || r.phone.includes(val) || r.clientName.toLowerCase().includes(val));
+            output.innerHTML = filtered.map(r => `
+                <tr onclick="openReceiptFromTable(${r.id})">
+                    <td>${r.id}</td><td>${r.clientName}</td><td>${r.phone}</td><td>${r.brand} ${r.model}</td><td>${r.status}</td><td>${r.remaining} ${r.currency}</td>
+                </tr>
+            `).join("");
+        }
+
+        function openReceiptFromTable(id) {
+            switchView('eng-reports-view', document.getElementById('menu-engineers'));
+            document.getElementById("report-search-id").value = id;
+            loadReceiptToReport();
+        }
+
+        let currentEditingReceiptId = null;
+        function loadReceiptToReport() {
+            const id = parseInt(document.getElementById("report-search-id").value);
+            const receipt = db.receipts.find(r => r.id === id);
+            if(!receipt) { alert("السند غير موجود."); return; }
+            currentEditingReceiptId = id;
+            document.getElementById("report-card-title").innerText = `تعديل إيصال صيانة: #${receipt.id}`;
+            document.getElementById("rep-status").value = receipt.status;
+            document.getElementById("rep-engineer").value = receipt.engineerId;
+            document.getElementById("rep-delivered").checked = receipt.delivered;
+            document.getElementById("rep-paid").checked = receipt.paid;
+            document.getElementById("report-edit-card").style.display = "block";
+        }
+
+        function saveReportModifications() {
+            if(!currentEditingReceiptId) return;
+            const receipt = db.receipts.find(r => r.id === currentEditingReceiptId);
+            if(receipt) {
+                receipt.status = document.getElementById("rep-status").value;
+                receipt.engineerId = document.getElementById("rep-engineer").value;
+                receipt.delivered = document.getElementById("rep-delivered").checked;
+                receipt.paid = document.getElementById("rep-paid").checked;
+                saveToLocalStorage();
+                alert("تم تحديث السند بنجاح.");
+                initSystemCore();
+            }
+        }
+
+        function addNewEmployee(e) {
+            e.preventDefault();
+            const emp = {
+                id: db.employees.length + 1,
+                name: document.getElementById("emp-name").value,
+                user: document.getElementById("emp-user").value,
+                pass: document.getElementById("emp-pass").value,
+                perms: {
+                    new: document.getElementById("perm-new-receipt").checked,
+                    edit: document.getElementById("perm-edit").checked,
+                    del: document.getElementById("perm-delete").checked,
+                    admin: document.getElementById("perm-admin").checked
+                }
+            };
+            db.employees.push(emp);
+            saveToLocalStorage();
+            renderEmployeesTable();
+            document.getElementById("employee-form").reset();
+        }
+
+        function renderEmployeesTable() {
+            document.getElementById("employees-list-output").innerHTML = db.employees.map(e => `
+                <tr><td>${e.name}</td><td>${e.user}</td><td>${e.perms.admin?'كامل':'محدد'}</td></tr>
+            `).join("");
         }
 
         function addNewEngineer(e) {
@@ -663,47 +855,41 @@
                 spec: document.getElementById("eng-spec-input").value
             };
             db.engineers.push(eng);
-            localStorage.setItem("wahda_clean_db", JSON.stringify(db));
+            saveToLocalStorage();
             renderEngineersTable();
             populateEngineersDropdowns();
             document.getElementById("engineer-form").reset();
-            alert("تم تسجيل المهندس الجديد في النظام الصافي.");
+            alert("تمت إضافة المهندس الجديد إلى كادر الصيانة الخاص بك.");
         }
 
         function renderEngineersTable() {
             document.getElementById("engineers-list-output").innerHTML = db.engineers.length > 0 ? db.engineers.map(e => `
                 <tr><td>${e.name}</td><td>${e.phone}</td><td>${e.spec}</td></tr>
-            `) : `<tr><td colspan="3" style="text-align:center; color:var(--gray-muted);">لا يوجد مهندسون مسجلون. أضف طاقمك الآن من الحقول المخصصة بالأعلى.</td></tr>`;
+            `).join("") : `<tr><td colspan="3" style="text-align:center; color:var(--gray-muted);">لا يوجد مهندسون مسجلون حالياً. أضف فريقك بالأعلى.</td></tr>`;
         }
 
-        function addNewEmployee(e) {
-            e.preventDefault();
-            const emp = {
-                id: db.employees.length + 1,
-                name: document.getElementById("emp-name").value,
-                user: document.getElementById("emp-user").value,
-                pass: document.getElementById("emp-pass").value,
-                perms: {
-                    admin: document.getElementById("perm-admin").checked
-                }
-            };
-            db.employees.push(emp);
-            localStorage.setItem("wahda_clean_db", JSON.stringify(db));
-            renderEmployeesTable();
-            document.getElementById("employee-form").reset();
+        function calculateSystemNotifications() {
+            const container = document.getElementById("noti-list-container");
+            const now = new Date().getTime();
+            let delayed = db.receipts.filter(r => !r.delivered && r.status === "قيد العمل" && now > r.expectedDelivery);
+            document.getElementById("noti-count").innerText = delayed.length;
+            container.innerHTML = delayed.length > 0 ? delayed.map(r => `<div class="noti-item">سند #${r.id} متأخر!</div>`).join("") : "لا توجد متأخرات.";
         }
 
-        function renderEmployeesTable() {
-            document.getElementById("employees-list-output").innerHTML = db.employees.map(e => `
-                <tr><td>${e.name}</td><td>${e.user}</td><td>${e.perms.admin?'مسؤول كامل':'موظف'}</td></tr>
-            `).join("");
+        function toggleNotifications() {
+            const panel = document.getElementById("notification-center");
+            panel.style.display = panel.style.display === "block" ? "none" : "block";
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem("wahda_sys_db", JSON.stringify(db));
         }
 
         function exportSystemData() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
             const dl = document.createElement('a');
             dl.setAttribute("href", dataStr);
-            dl.setAttribute("download", "Wahda_Clean_Database.json");
+            dl.setAttribute("download", "Wahda_Database.json");
             dl.click();
         }
 
@@ -714,12 +900,105 @@
             reader.onload = function(e) {
                 try {
                     db = JSON.parse(e.target.result);
-                    localStorage.setItem("wahda_clean_db", JSON.stringify(db));
+                    saveToLocalStorage();
                     initSystemCore();
-                    alert("تم تحديث قاعدة البيانات.");
+                    alert("تم استيراد قاعدة البيانات بنجاح.");
                 } catch(err) { alert("ملف غير صالح."); }
             };
             reader.readAsText(file);
+        }
+
+        function setupDraggableElements() {
+            document.querySelectorAll('.draggable-element').forEach(el => {
+                let isDragging = false;
+                let currentX, currentY, initialX, initialY;
+                let xOffset = 0, yOffset = 0;
+
+                el.addEventListener('mousedown', dragStart);
+                el.addEventListener('touchstart', dragStart, {passive: false});
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('touchmove', drag, {passive: false});
+                document.addEventListener('mouseup', dragEnd);
+                document.addEventListener('touchend', dragEnd);
+
+                function dragStart(e) {
+                    let clientX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
+                    let clientY = e.type === "touchstart" ? e.touches[0].clientY : e.clientY;
+                    initialX = clientX - xOffset;
+                    initialY = clientY - yOffset;
+                    if (e.target === el) isDragging = true;
+                }
+
+                function drag(e) {
+                    if (isDragging) {
+                        e.preventDefault();
+                        let clientX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
+                        let clientY = e.type === "touchmove" ? e.touches[0].clientY : e.clientY;
+                        currentX = clientX - initialX;
+                        currentY = clientY - initialY;
+                        xOffset = currentX;
+                        yOffset = currentY;
+                        el.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+                    }
+                }
+
+                function dragEnd() {
+                    initialX = currentX;
+                    initialY = currentY;
+                    isDragging = false;
+                }
+            });
+        }
+
+        function updateDesignerStyles() {
+            const fs = document.getElementById("print-font-size").value + "px";
+            const col = document.getElementById("print-font-color").value;
+            document.querySelectorAll('.draggable-element').forEach(el => {
+                el.style.fontSize = fs;
+                el.style.color = col;
+            });
+            db.printLayout.fontSize = parseInt(document.getElementById("print-font-size").value);
+            db.printLayout.color = col;
+        }
+
+        function savePrintLayoutCoordinates() {
+            const visualBounds = document.getElementById("print-designer-visual").getBoundingClientRect();
+            document.querySelectorAll('.draggable-element').forEach(el => {
+                const rect = el.getBoundingClientRect();
+                const key = el.id.replace('drag-p-', '');
+                if (db.printLayout.positions[key]) {
+                    db.printLayout.positions[key].top = rect.top - visualBounds.top;
+                    db.printLayout.positions[key].left = rect.left - visualBounds.left;
+                }
+            });
+            saveToLocalStorage();
+            alert("تم حفظ أبعاد ومواقع الطباعة المحدثة.");
+        }
+
+        function updateDesignerVisualFromDB() {
+            document.getElementById("print-font-size").value = db.printLayout.fontSize || 13;
+            document.getElementById("print-font-color").value = db.printLayout.color || "#000000";
+            updateDesignerStyles();
+        }
+
+        function triggerDirectPrint() {
+            const printArea = document.getElementById("print-area-target");
+            const fs = db.printLayout.fontSize + "px";
+            const col = db.printLayout.color;
+            const lastRec = db.receipts[db.receipts.length - 1] || { id: 1, clientName: "جاري الفحص", brand: "-", model: "-", faultDesc: "-", total: 0, prepaid: 0, remaining: 0 };
+
+            printArea.innerHTML = `
+                <div style="position: relative; width: 210mm; height: 65mm; color: ${col}; font-size: ${fs};">
+                    <div style="position: absolute; top: ${db.printLayout.positions.id.top}px; left: ${db.printLayout.positions.id.left}px;">رقم الإيصال: #${lastRec.id}</div>
+                    <div style="position: absolute; top: ${db.printLayout.positions.name.top}px; left: ${db.printLayout.positions.name.left}px;">الاسم: ${lastRec.clientName}</div>
+                    <div style="position: absolute; top: ${db.printLayout.positions.device.top}px; left: ${db.printLayout.positions.device.left}px;">الجهاز: ${lastRec.brand} ${lastRec.model}</div>
+                    <div style="position: absolute; top: ${db.printLayout.positions.fault.top}px; left: ${db.printLayout.positions.fault.left}px;">العطل: ${lastRec.faultDesc}</div>
+                    <div style="position: absolute; top: ${db.printLayout.positions.money.top}px; left: ${db.printLayout.positions.money.left}px;">الإجمالي: ${lastRec.total}</div>
+                    <div style="position: absolute; top: ${db.printLayout.positions.prepaid.top}px; left: ${db.printLayout.positions.prepaid.left}px;">المسبق: ${lastRec.prepaid}</div>
+                    <div style="position: absolute; top: ${db.printLayout.positions.remaining.top}px; left: ${db.printLayout.positions.remaining.left}px;">المتبقي: ${lastRec.remaining}</div>
+                </div>
+            `;
+            window.print();
         }
     </script>
 </body>
