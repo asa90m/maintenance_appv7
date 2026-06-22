@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>الوحده للبرمجيات - نظام صيانة الهواتف</title>
+    <style>
+        :root {
+            --bg-primary: #f4f6f9;
+            --bg-sidebar: #e9ecef;
+            --text-main: #333333;
+            --brand-color: #4a90e2;
+            --brand-light: #e6f0fa;
+            --gray-muted: #6c757d;
+            --border-color: #ced4da;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-sidebar: #2d2d2d;
+            --text-main: #f5f5f5;
+            --brand-color: #377bbe;
+            --brand-light: #2b3a4a;
+            --gray-muted: #a0a0a0;
+            --border-color: #444444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        #login-screen, #password-reset-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .login-card {
+            background: var(--bg-sidebar);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-card h2 { margin-bottom: 20px; color: var(--brand-color); }
+        .login-card input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-primary);
+            color: var(--text-main);
+            font-size: 16px;
+        }
+        .login-card button {
+            width: 100%;
+            padding: 12px;
+            background: var(--brand-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        #main-header {
+            background-color: var(--brand-light);
+            height: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .header-logo { width: 35px; height: 35px; background: var(--brand-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .header-title { color: #2c5282; font-size: 1.1rem; font-weight: bold; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .icon-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-main); position: relative; padding: 5px; }
+        .badge { position: absolute; top: -2px; right: -2px; background: var(--danger-color); color: white; font-size: 0.65rem; padding: 2px 5px; border-radius: 50%; }
+
+        #app-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #sidebar {
+            width: 240px;
+            background-color: var(--bg-sidebar);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+        
+        @media (max-width: 768px) {
+            #sidebar { width: 60px; }
+            .menu-text { display: none; }
+            .section-title { font-size: 0.65rem; text-align: center; padding: 5px 2px; }
+            .menu-item { justify-content: center; padding: 12px 5px; }
+        }
+
+        .sidebar-section { border-bottom: 1px solid var(--border-color); padding: 5px 0; }
+        .section-title { padding: 5px 15px; font-weight: bold; color: var(--gray-muted); font-size: 0.85rem; background: rgba(0,0,0,0.03); }
+        .menu-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; text-decoration: none; color: var(--text-main); cursor: pointer; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background-color: var(--brand-light); color: var(--brand-color); font-weight: bold; }
+
+        #content-area {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: var(--bg-primary);
+            -webkit-overflow-scrolling: touch;
+        }
+        .view-panel { display: none; }
+        .view-panel.active { display: block; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 4px; font-weight: 500; font-size: 0.9rem; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-main); font-size: 15px; }
+        .form-control[readonly] { background-color: rgba(0,0,0,0.05); cursor: not-allowed; }
+        
+        .row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 140px; }
+
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+        .btn-primary { background: var(--brand-color); color: white; }
+        .btn-success { background: var(--success-color); color: white; }
+        .btn-danger { background: var(--danger-color); color: white; }
+
+        .autocomplete-wrapper { position: relative; }
+        .suggestions-box { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-primary); border: 1px solid var(--border-color); z-index: 100; max-height: 180px; overflow-y: auto; border-radius: 0 0 4px 4px; display: none; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .suggestion-item { padding: 10px; cursor: pointer; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+        .suggestion-item:hover { background: var(--brand-light); }
+
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 15px; }
+        .data-table { width: 100%; border-collapse: collapse; background: var(--bg-primary); min-width: 500px; }
+        .data-table th, .data-table td { border: 1px solid var(--border-color); padding: 10px; text-align: right; font-size: 0.85rem; }
+        .data-table th { background: var(--bg-sidebar); }
+
+        .footer-credits {
+            text-align: center;
+            padding: 8px;
+            font-size: 0.8rem;
+            background: var(--bg-sidebar);
+            border-top: 1px solid var(--border-color);
+            color: var(--gray-muted);
+        }
+
+        #notification-center {
+            position: fixed;
+            top: 65px; left: 15px;
+            width: 290px;
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 1000;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        .noti-item { padding: 10px; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; }
+    </style>
+</head>
+<body data-theme="light">
+
+    <!-- شاشة تسجيل الدخول admin/admin -->
+    <div id="login-screen">
+        <div class="login-card">
+            <h2>الوحده للبرمجيات</h2>
+            <p style="color: var(--gray-muted); margin-bottom: 12px;">نظام إدارة صيانة الهواتف والشبكات</p>
+            <input type="text" id="login-user" placeholder="اسم المستخدم" value="admin">
+            <input type="password" id="login-pass" placeholder="كلمة المرور" value="admin">
+            <button onclick="handleLogin()">تسجيل الدخول</button>
+        </div>
+    </div>
+
+    <!-- شاشة تحديث كلمة السر الإجبارية للمدير قبل فتح النظام -->
+    <div id="password-reset-screen" style="display: none;">
+        <div class="login-card">
+            <h3 style="color: var(--danger-color); margin-bottom: 10px;">🛡️ تعيين كلمة مرور المدير العام</h3>
+            <p style="color: var(--text-main); font-size: 0.9rem; margin-bottom: 15px;">النظام جديد وصافٍ. يرجى إدخال كلمة مرور جديدة قوية لحساب المدير العام لتأمين النظام والبدء في العمل.</p>
+            <input type="password" id="new-secure-pass" placeholder="كلمة المرور الجديدة">
+            <input type="password" id="confirm-secure-pass" placeholder="تأكيد كلمة المرور الجديدة">
+            <button onclick="forcePasswordChange()" style="background: var(--success-color);">حفظ وتأمين الحساب 🔒</button>
+        </div>
+    </div>
+
+    <header id="main-header">
+        <div class="header-right">
+            <div class="header-logo">W</div>
+            <div class="header-title">الوحده للبرمجيات</div>
+        </div>
+        <div class="header-left">
+            <button class="icon-btn" onclick="toggleNotifications()">🔔 <span class="badge" id="noti-count">0</span></button>
+            <button class="icon-btn" id="theme-toggle-btn" onclick="toggleTheme()">🌙</button>
+            <button class="icon-btn" onclick="logout()" title="خروج">🚪</button>
+        </div>
+    </header>
+
+    <div id="app-body">
+        <aside id="sidebar">
+            <div class="sidebar-section">
+                <div class="section-title">العمليات</div>
+                <div class="menu-item active" onclick="switchView('new-receipt-view', this)">📝 <span class="menu-text">إيصال جديد</span></div>
+                <div class="menu-item" onclick="switchView('search-devices-view', this)">🔍 <span class="menu-text">بحث عن أجهزة</span></div>
+                <div class="menu-item" onclick="switchView('eng-reports-view', this)">📊 <span class="menu-text">تقارير المهندسين</span></div>
+            </div>
+            <div class="sidebar-section">
+                <div class="section-title">الإدارة</div>
+                <div class="menu-item" id="menu-employees" onclick="switchView('employees-view', this)">👥 <span class="menu-text">الموظفون</span></div>
+                <div class="menu-item" id="menu-engineers" onclick="switchView('engineers-view', this)">🔧 <span class="menu-text">المهندسون</span></div>
+            </div>
+            <div class="sidebar-section">
+                <div class="section-title">الإعدادات</div>
+                <div class="menu-item" id="menu-maintenance" onclick="switchView('sys-maintenance-view', this)">💾 <span class="menu-text">صيانة النظام</span></div>
+            </div>
+        </aside>
+
+        <main id="content-area">
+
+            <!-- واجهة إيصال جديد -->
+            <section id="new-receipt-view" class="view-panel active">
+                <h3 style="margin-bottom: 15px; color: var(--brand-color);">إيصال استلام جديد</h3>
+                <form id="receipt-form" onsubmit="saveNewReceipt(event)">
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label>رقم الإيصال (تلقائي)</label>
+                                <input type="text" id="rec-id" class="form-control" readonly>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="form-group autocomplete-wrapper">
+                                <label>رقم هاتف العميل</label>
+                                <input type="text" id="rec-phone" class="form-control" required oninput="searchClientByPhone(this.value)">
+                                <div class="suggestions-box" id="phone-suggestions"></div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="form-group">
+                                <label>اسم العميل</label>
+                                <input type="text" id="rec-client-name" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col autocomplete-wrapper">
+                            <div class="form-group">
+                                <label>الشركة المصنعة</label>
+                                <input type="text" id="rec-brand" class="form-control" required oninput="suggestBrands(this.value)">
+                                <div class="suggestions-box" id="brand-suggestions"></div>
+                            </div>
+                        </div>
+                        <div class="col autocomplete-wrapper">
+                            <div class="form-group">
+                                <label>الموديل المرتبط</label>
+                                <input type="text" id="rec-model" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="form-group">
+                                <label>الرقم التسلسلي (اختياري)</label>
+                                <input type="text" id="rec-imei" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label>نوع العطل</label>
+                                <select id="rec-fault-type" class="form-control">
+                                    <option value="هاردوير">هاردوير</option>
+                                    <option value="برمجي">برمجي</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="form-group">
+                                <label>نظافة الجهاز</label>
+                                <select id="rec-condition" class="form-control">
+                                    <option value="جديد نظيف">جديد نظيف</option>
+                                    <option value="مجعوث">مجعوث</option>
+                                    <option value="طافي">طافي</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col autocomplete-wrapper">
+                            <div class="form-group">
+                                <label>العطل</label>
+                                <input type="text" id="rec-fault-desc" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label>العملة</label>
+                                <select id="rec-currency" class="form-control" onchange="updateRemainingCost()">
+                                    <option value="ريال يمني">ريال يمني</option>
+                                    <option value="سعودي">سعودي</option>
+                                    <option value="دولار">دولار</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="form-group">
+                                <label>المبلغ الإجمالي</label>
+                                <input type="number" id="rec-total" class="form-control" value="0" oninput="updateRemainingCost()">
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="form-group">
+                                <label>الدفع المسبق</label>
+                                <input type="number" id="rec-prepaid" class="form-control" value="0" oninput="updateRemainingCost()">
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="form-group">
+                                <label>المبلغ المتبقي</label>
+                                <input type="number" id="rec-remaining" class="form-control" value="0" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label>المهندس المختص بالاستلام</label>
+                                <select id="rec-engineer" class="form-control" required>
+                                    <option value="">-- اختر مهندس الصيانة --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px;">
+                        <button type="submit" class="btn btn-success">💾 حفظ السند</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- واجهة البحث عن الأجهزة -->
+            <section id="search-devices-view" class="view-panel">
+                <h3 style="margin-bottom: 15px; color: var(--brand-color);">البحث والتقارير الفورية</h3>
+                <div class="row" style="margin-bottom: 15px;">
+                    <div class="col">
+                        <input type="text" id="search-global-input" class="form-control" placeholder="ابحث برقم الإيصال، الهاتف، أو اسم العميل...">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-primary" onclick="performGlobalSearch()">🔍 بحث</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>رقم السند</th>
+                                <th>العميل</th>
+                                <th>الهاتف</th>
+                                <th>الجهاز</th>
+                                <th>الحالة</th>
+                                <th>المتبقي</th>
+                            </tr>
+                        </thead>
+                        <tbody id="search-results-output"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- واجهة تقارير المهندسين والترحيل -->
+            <section id="eng-reports-view" class="view-panel">
+                <h3 style="margin-bottom: 15px; color: var(--brand-color);">ترحيل تقارير المهندسين</h3>
+                <div class="row" style="margin-bottom: 15px;">
+                    <div class="col">
+                        <input type="number" id="report-search-id" class="form-control" placeholder="أدخل رقم الإيصال...">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-primary" onclick="loadReceiptToReport()">📂 جلب البيانات</button>
+                    </div>
+                </div>
+
+                <div id="report-edit-card" style="display:none; background: var(--bg-sidebar); padding: 15px; border-radius: 6px;">
+                    <h4 id="report-card-title" style="margin-bottom: 12px;">تفاصيل السند الفني</h4>
+                    <div class="row">
+                        <div class="col">
+                            <label><b>حالة صيانة الجهاز:</b></label>
+                            <select id="rep-status" class="form-control">
+                                <option value="قيد العمل">قيد العمل 🔧</option>
+                                <option value="تم التصليح">تم التصليح ✅</option>
+                                <option value="لا يمكن إصلاحه">لا يمكن إصلاحه ❌</option>
+                            </select>
+                        </div>
+                        <div class="col">
+                            <label><b>المهندس الفني:</b></label>
+                            <select id="rep-engineer" class="form-control"></select>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button class="btn btn-success" onclick="saveReportModifications()">💾 حفظ وتحديث السند الفوري</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- واجهة الموظفين -->
+            <section id="employees-view" class="view-panel">
+                <h3 style="margin-bottom: 15px; color: var(--brand-color);">إدارة الموظفين والصلاحيات</h3>
+                <form id="employee-form" onsubmit="addNewEmployee(event)">
+                    <div class="row">
+                        <div class="col"><input type="text" id="emp-name" class="form-control" placeholder="اسم الموظف" required></div>
+                        <div class="col"><input type="text" id="emp-user" class="form-control" placeholder="اسم المستخدم" required></div>
+                        <div class="col"><input type="password" id="emp-pass" class="form-control" placeholder="كلمة السر" required></div>
+                    </div>
+                    <div style="margin: 12px 0; font-size: 0.9rem;">
+                        <p style="font-weight: bold; margin-bottom: 5px;">الصلاحيات الممنوحة:</p>
+                        <label style="margin-left: 10px;"><input type="checkbox" id="perm-new-receipt" checked> إيصال جديد</label>
+                        <label style="margin-left: 10px;"><input type="checkbox" id="perm-edit" checked> ترحيل وتعديل</label>
+                        <label style="margin-left: 10px;"><input type="checkbox" id="perm-admin"> مسؤول كامل</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">➕ إضافة موظف جديد</button>
+                </form>
+                <div class="table-responsive">
+                    <table class="data-table" style="margin-top: 15px;">
+                        <thead><tr><th>الاسم</th><th>المستخدم</th><th>الحالة</th></tr></thead>
+                        <tbody id="employees-list-output"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- واجهة المهندسين -->
+            <section id="engineers-view" class="view-panel">
+                <h3 style="margin-bottom: 15px; color: var(--brand-color);">إضافة وتحديث كادر المهندسين</h3>
+                <form id="engineer-form" onsubmit="addNewEngineer(event)">
+                    <div class="row">
+                        <div class="col"><input type="text" id="eng-name-input" class="form-control" placeholder="اسم المهندس الفني" required></div>
+                        <div class="col"><input type="text" id="eng-phone-input" class="form-control" placeholder="رقم هاتف المهندس" required></div>
+                        <div class="col"><input type="text" id="eng-spec-input" class="form-control" placeholder="التخصص الفني" required></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="margin-top: 12px;">➕ تسجيل مهندس</button>
+                </form>
+                <div class="table-responsive">
+                    <table class="data-table" style="margin-top: 15px;">
+                        <thead><tr><th>المهندس</th><th>الهاتف</th><th>التخصص</th></tr></thead>
+                        <tbody id="engineers-list-output"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- صيانة النظام -->
+            <section id="sys-maintenance-view" class="view-panel">
+                <h3 style="margin-bottom: 15px; color: var(--brand-color);">النسخ الاحتياطي والصيانة</h3>
+                <div style="background: var(--bg-sidebar); padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="exportSystemData()">📥 تحميل النسخة الاحتياطية (JSON)</button>
+                        <button class="btn btn-primary" onclick="document.getElementById('import-file-input').click()">📤 استرجاع وتحديث البيانات</button>
+                        <input type="file" id="import-file-input" style="display: none;" onchange="importSystemData(event)">
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <div id="notification-center">
+        <div style="padding: 10px; font-weight: bold; background: var(--brand-color); color: white; font-size: 0.9rem;">إشعارات النظام</div>
+        <div id="noti-list-container"></div>
+    </div>
+
+    <footer class="footer-credits">
+        نظام صيانة الوحده للبرمجيات &copy; 2026
+    </footer>
+
+    <script>
+        // إعداد قاعدة بيانات فارغة ونظيفة تماماً
+        let db = {
+            receipts: [],
+            engineers: [], // صفر تماماً
+            employees: [
+                { id: 1, name: "المدير العام", user: "admin", pass: "admin", perms: { admin: true } }
+            ],
+            suggestionsData: {
+                brands: ["Apple", "Samsung", "Huawei", "Xiaomi", "Infinix"]
+            }
+        };
+
+        let currentUser = null;
+
+        window.onload = function() {
+            // مسح وتصفير إجباري للمتصفح لتنظيف مخلفات الأنظمة السابقة بالكامل
+            localStorage.setItem("wahda_clean_db", JSON.stringify(db));
+            initSystemCore();
+        };
+
+        function initSystemCore() {
+            document.getElementById("rec-id").value = db.receipts.length + 1;
+            populateEngineersDropdowns();
+            renderEngineersTable();
+            renderEmployeesTable();
+        }
+
+        function handleLogin() {
+            const userIn = document.getElementById("login-user").value;
+            const passIn = document.getElementById("login-pass").value;
+            const matched = db.employees.find(e => e.user === userIn && e.pass === passIn);
+            
+            if (matched) {
+                currentUser = matched;
+                // إذا كان المدير يدخل بكلمة السر الافتراضية admin يتم إجباره على التغيير فوراً
+                if (matched.user === "admin" && matched.pass === "admin") {
+                    document.getElementById("login-screen").style.display = "none";
+                    document.getElementById("password-reset-screen").style.display = "flex";
+                } else {
+                    document.getElementById("login-screen").style.display = "none";
+                    applyUserPermissions(matched);
+                }
+            } else {
+                alert("بيانات الدخول خاطئة.");
+            }
+        }
+
+        function forcePasswordChange() {
+            const newPass = document.getElementById("new-secure-pass").value;
+            const confirmPass = document.getElementById("confirm-secure-pass").value;
+
+            if (!newPass || newPass.trim() === "" || newPass === "admin") {
+                alert("يرجى إدخال كلمة مرور جديدة وقوية ومختلفة عن كلمة admin الحالية!");
+                return;
+            }
+            if (newPass !== confirmPass) {
+                alert("كلمتا المرور غير متطابقتين.");
+                return;
+            }
+
+            const adminUser = db.employees.find(e => e.user === "admin");
+            if (adminUser) {
+                adminUser.pass = newPass;
+                localStorage.setItem("wahda_clean_db", JSON.stringify(db));
+                alert("🔒 تم تعيين كلمة المرور الجديدة وتأمين حساب المدير بنجاح.");
+                document.getElementById("password-reset-screen").style.display = "none";
+                applyUserPermissions(currentUser);
+            }
+        }
+
+        function applyUserPermissions(user) {
+            if (user.perms.admin) {
+                document.getElementById("menu-employees").style.display = "flex";
+                document.getElementById("menu-engineers").style.display = "flex";
+                document.getElementById("menu-maintenance").style.display = "flex";
+            } else {
+                document.getElementById("menu-employees").style.display = "none";
+                document.getElementById("menu-engineers").style.display = "none";
+                document.getElementById("menu-maintenance").style.display = "none";
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById("login-screen").style.display = "flex";
+            document.getElementById("password-reset-screen").style.display = "none";
+        }
+
+        function switchView(viewId, element) {
+            document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+            document.querySelectorAll(".menu-item").forEach(m => m.classList.remove("active"));
+            document.getElementById(viewId).classList.add("active");
+            element.classList.add("active");
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute("data-theme");
+            const newTheme = currentTheme === "light" ? "dark" : "light";
+            body.setAttribute("data-theme", newTheme);
+            document.getElementById("theme-toggle-btn").innerText = newTheme === "light" ? "🌙" : "☀️";
+        }
+
+        function populateEngineersDropdowns() {
+            let html = `<option value="">-- اختر مهندس الصيانة --</option>`;
+            html += db.engineers.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
+            document.getElementById("rec-engineer").innerHTML = html;
+            document.getElementById("rep-engineer").innerHTML = html;
+        }
+
+        function updateRemainingCost() {
+            const total = parseFloat(document.getElementById("rec-total").value) || 0;
+            const prepaid = parseFloat(document.getElementById("rec-prepaid").value) || 0;
+            document.getElementById("rec-remaining").value = Math.max(0, total - prepaid);
+        }
+
+        function suggestBrands(val) {
+            const box = document.getElementById("brand-suggestions");
+            if (!val) { box.style.display = "none"; return; }
+            let filtered = db.suggestionsData.brands.filter(b => b.toLowerCase().includes(val.toLowerCase()));
+            box.innerHTML = filtered.map(f => `<div class="suggestion-item" onclick="document.getElementById('rec-brand').value='${f}'; document.getElementById('brand-suggestions').style.display='none';">${f}</div>`).join("");
+            box.style.display = "block";
+        }
+
+        function saveNewReceipt(e) {
+            e.preventDefault();
+            const engSelect = document.getElementById("rec-engineer").value;
+            if(!engSelect) { alert("يرجى اختيار المهندس الفني المسؤول أولاً!"); return; }
+            
+            const newRec = {
+                id: db.receipts.length + 1,
+                phone: document.getElementById("rec-phone").value,
+                clientName: document.getElementById("rec-client-name").value,
+                brand: document.getElementById("rec-brand").value,
+                model: document.getElementById("rec-model").value,
+                imei: document.getElementById("rec-imei").value,
+                faultType: document.getElementById("rec-fault-type").value,
+                condition: document.getElementById("rec-condition").value,
+                faultDesc: document.getElementById("rec-fault-desc").value,
+                currency: document.getElementById("rec-currency").value,
+                total: document.getElementById("rec-total").value,
+                prepaid: document.getElementById("rec-prepaid").value,
+                remaining: document.getElementById("rec-remaining").value,
+                engineerId: engSelect,
+                status: "قيد العمل"
+            };
+            db.receipts.push(newRec);
+            localStorage.setItem("wahda_clean_db", JSON.stringify(db));
+            alert(`تم حفظ السند رقم ${newRec.id} بنجاح.`);
+            initSystemCore();
+            document.getElementById("receipt-form").reset();
+        }
+
+        function addNewEngineer(e) {
+            e.preventDefault();
+            const eng = {
+                id: db.engineers.length + 1,
+                name: document.getElementById("eng-name-input").value,
+                phone: document.getElementById("eng-phone-input").value,
+                spec: document.getElementById("eng-spec-input").value
+            };
+            db.engineers.push(eng);
+            localStorage.setItem("wahda_clean_db", JSON.stringify(db));
+            renderEngineersTable();
+            populateEngineersDropdowns();
+            document.getElementById("engineer-form").reset();
+            alert("تم تسجيل المهندس الجديد في النظام الصافي.");
+        }
+
+        function renderEngineersTable() {
+            document.getElementById("engineers-list-output").innerHTML = db.engineers.length > 0 ? db.engineers.map(e => `
+                <tr><td>${e.name}</td><td>${e.phone}</td><td>${e.spec}</td></tr>
+            `) : `<tr><td colspan="3" style="text-align:center; color:var(--gray-muted);">لا يوجد مهندسون مسجلون. أضف طاقمك الآن من الحقول المخصصة بالأعلى.</td></tr>`;
+        }
+
+        function addNewEmployee(e) {
+            e.preventDefault();
+            const emp = {
+                id: db.employees.length + 1,
+                name: document.getElementById("emp-name").value,
+                user: document.getElementById("emp-user").value,
+                pass: document.getElementById("emp-pass").value,
+                perms: {
+                    admin: document.getElementById("perm-admin").checked
+                }
+            };
+            db.employees.push(emp);
+            localStorage.setItem("wahda_clean_db", JSON.stringify(db));
+            renderEmployeesTable();
+            document.getElementById("employee-form").reset();
+        }
+
+        function renderEmployeesTable() {
+            document.getElementById("employees-list-output").innerHTML = db.employees.map(e => `
+                <tr><td>${e.name}</td><td>${e.user}</td><td>${e.perms.admin?'مسؤول كامل':'موظف'}</td></tr>
+            `).join("");
+        }
+
+        function exportSystemData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", "Wahda_Clean_Database.json");
+            dl.click();
+        }
+
+        function importSystemData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    db = JSON.parse(e.target.result);
+                    localStorage.setItem("wahda_clean_db", JSON.stringify(db));
+                    initSystemCore();
+                    alert("تم تحديث قاعدة البيانات.");
+                } catch(err) { alert("ملف غير صالح."); }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
